@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LCD Manager</title>
+    <link href='http://fonts.googleapis.com/css?family=VT323' rel='stylesheet' type='text/css'>
+    <style type="text/css">
+    .mono {
+        font-family: 'VT323';
+        font-size: 14pt;
+    }
+    body {
+        font-family: sans-serif;
+    }
+    </style>
+</head>
+<body>
+<h1>LCD Control</h1>
+<hr>
+Line 0: <input class=mono type=text size=16 maxlength=16 name=line><br/>
+Line 1: <input class=mono type=text size=16 maxlength=16 name=line><br/>
+
+Background: <input type=color name=color> <br>
+Brightness: <input type=range min=0 max=255 step=1 name=brightness> <br>
+Contrast: <input type=range min=0 max=255 step=1 name=contrast> <br>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script type="text/javascript">
+
+function vals(name) {
+    var inputs = $('input[name='+name+']');
+    var data = {};
+    if (inputs.length == 1) {
+        data[name] = inputs.val();
+    } else if (inputs.length > 1) {
+        data[name + "[]"] = inputs.map(function(k,v) { return v.value; }).get();
+    }
+    return data
+}
+
+window.addEventListener('input', function(ev) {
+    $.post("/set", vals(ev.target.name));
+})
+</script>
+
+</body>
+</html>
