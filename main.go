@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/augustoroman/multierror"
 	"github.com/pwaller/go-hexcolor"
@@ -47,13 +48,14 @@ func (f FakeLcd) MoveBack() error                { return nil }
 func (f FakeLcd) Write(b []byte) (int, error)    { return len(b), nil }
 
 func main() {
-	port := flag.String("port", "/dev/tty.usbmodem1451", "COM port that LCD is on.")
+	port := flag.String("port", "/dev/serial/by-id/usb-239a_Adafruit_Industries-if00", "COM port that LCD is on.")
 	baud := flag.Int("baud", 9600, "Baud rate to communicate at.")
 	addr := flag.String("addr", ":12000", "Web address to bind to.")
 	flag.Parse()
 
 	var lcd LCD
 	if *port == "" {
+		log.Println("Using fake LCD interface since empty --port specified.")
 		lcd = FakeLcd{}
 	} else {
 		var err error
@@ -74,6 +76,8 @@ func main() {
 	}
 	s.configure(16, 2)
 	lcd.SetSize(16, 2)
+	s.SetLines("", "")
+	s.Update()
 
 	m := martini.Classic()
 	m.Handlers(martini.Recovery())
@@ -119,6 +123,8 @@ type server struct {
 	linePos []int
 
 	lcd LCD
+
+	mutex sync.Mutex
 }
 
 func asByte(val string) uint8 { n, _ := strconv.ParseUint(val, 10, 8); return uint8(n) }
@@ -128,14 +134,13 @@ func asColor(val string) color.RGBA {
 	return color.RGBA{r, g, b, a}
 }
 
-func (s *server) Update() {
+func (s *server) Update() error {
 	s.render()
-	s.settings.apply(s.lcd)
+	return s.settings.apply(s.lcd)
 }
-func (s *server) SetLines(lines []string) {
+func (s *server) SetLines(lines ...string) {
 	s.lines = lines
 	s.linePos = make([]int, len(lines))
-	s.Update()
 }
 func min(a, b int) int {
 	if a < b {
@@ -179,6 +184,9 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	for key, vals := range r.Form {
 		if len(vals) == 0 {
 			continue
@@ -189,12 +197,18 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 			s.brightness = asByte(val)
 		case "contrast":
 			s.contrast = asByte(val)
-		case "background":
+		case "color":
 			s.bgcolor = asColor(val)
 		case "on":
 			s.on = asBool(val)
-		case "lines":
-			s.SetLines(vals)
+		case "line[]":
+			s.SetLines(vals...)
+		default:
+			log.Printf("Unknown form key %q = %q", key, vals)
 		}
+	}
+	if err := s.Update(); err != nil {
+		log.Printf("Failed to update lcd: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

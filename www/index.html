@@ -32,7 +32,7 @@ function vals(name) {
     if (inputs.length == 1) {
         data[name] = inputs.val();
     } else if (inputs.length > 1) {
-        data[name + "[]"] = inputs.map(function(k,v) { return v.value; }).get();
+        data[name] = inputs.map(function(k,v) { return v.value; }).get();
     }
     return data
 }
