@@ -19,7 +19,7 @@
 Line 0: <input class=mono type=text size=16 maxlength=16 name=line><br/>
 Line 1: <input class=mono type=text size=16 maxlength=16 name=line><br/>
 
-Background: <input type=color name=color> <br>
+Background: <input type=color name=color>  (rainbow: <input type=checkbox name=rainbow>)<br>
 Brightness: <input type=range min=0 max=255 step=1 name=brightness> <br>
 Contrast: <input type=range min=0 max=255 step=1 name=contrast> <br>
 
@@ -30,7 +30,11 @@ function vals(name) {
     var inputs = $('input[name='+name+']');
     var data = {};
     if (inputs.length == 1) {
-        data[name] = inputs.val();
+        if (inputs[0].type=="checkbox") {
+            data[name] = inputs[0].checked;
+        } else {
+            data[name] = inputs.val();
+        }
     } else if (inputs.length > 1) {
         data[name] = inputs.map(function(k,v) { return v.value; }).get();
     }
@@ -40,6 +44,17 @@ function vals(name) {
 window.addEventListener('input', function(ev) {
     $.post("/set", vals(ev.target.name));
 })
+
+function checkedVal(name) {
+    var data = {};
+    data[name] = $('input[name='+name+']')[0].checked;
+    return data;
+}
+
+$('input[type=checkbox]').click(function(ev){
+    $.post("/set", checkedVal(ev.target.name));
+});
+
 </script>
 
 </body>

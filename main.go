@@ -2,15 +2,15 @@ package main
 
 import (
 	"flag"
-	"image/color"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
-	"sync"
+	"time"
 
+	"code.google.com/p/sadbox/color"
 	"github.com/augustoroman/multierror"
-	"github.com/pwaller/go-hexcolor"
 
 	"github.com/GeertJohan/go.rice"
 	"github.com/augustoroman/serial_lcd"
@@ -47,6 +47,8 @@ func (f FakeLcd) MoveForward() error             { return nil }
 func (f FakeLcd) MoveBack() error                { return nil }
 func (f FakeLcd) Write(b []byte) (int, error)    { return len(b), nil }
 
+type RGB struct{ R, G, B uint8 }
+
 func main() {
 	port := flag.String("port", "/dev/serial/by-id/usb-239a_Adafruit_Industries-if00", "COM port that LCD is on.")
 	baud := flag.Int("baud", 9600, "Baud rate to communicate at.")
@@ -67,13 +69,15 @@ func main() {
 
 	s := &server{
 		settings: settings{
-			bgcolor:    color.RGBA{200, 200, 50, 0},
+			bgcolor:    RGB{200, 200, 50},
 			contrast:   200,
 			brightness: 180,
 			on:         true,
 		},
 		lcd: lcd,
+		ch:  make(chan server),
 	}
+	go lcdLoop(s.ch)
 	s.configure(16, 2)
 	lcd.SetSize(16, 2)
 	s.SetLines("", "")
@@ -88,7 +92,7 @@ func main() {
 
 type settings struct {
 	display    [][]byte
-	bgcolor    color.RGBA
+	bgcolor    RGB
 	contrast   uint8
 	brightness uint8
 	on         bool
@@ -116,31 +120,63 @@ func (s *settings) configure(width, height int) {
 
 func dropN(n int, e error) error { return e }
 
+func lcdLoop(newSettings chan server) {
+	s := <-newSettings
+	timer := time.NewTicker(100 * time.Millisecond)
+	defer timer.Stop()
+	last := time.Now()
+	var open bool
+	for {
+		select {
+		case s, open = <-newSettings:
+			if !open {
+				return
+			}
+		case t := <-timer.C:
+			s.advance(t.Sub(last))
+		}
+		s.apply(s.lcd)
+		last = time.Now()
+	}
+}
+
+func (s *server) advance(dt time.Duration) {
+	if s.rainbow {
+		h, ss, v := color.RGBToHSV(s.bgcolor.R, s.bgcolor.G, s.bgcolor.B)
+		h = math.Mod(h+dt.Seconds()/10.0, 1.0)
+		s.bgcolor.R, s.bgcolor.G, s.bgcolor.B = color.HSVToRGB(h, ss, v)
+	}
+}
+
 type server struct {
 	settings
 
 	lines   []string
-	linePos []int
+	linePos []float64
 
 	lcd LCD
 
-	mutex sync.Mutex
+	rainbow bool
+
+	ch chan server
 }
 
 func asByte(val string) uint8 { n, _ := strconv.ParseUint(val, 10, 8); return uint8(n) }
 func asBool(val string) bool  { return val == "true" }
-func asColor(val string) color.RGBA {
-	r, g, b, a := hexcolor.HexToRGBA(hexcolor.Hex(val))
-	return color.RGBA{r, g, b, a}
+func asColor(val string) RGB {
+	r, g, b := color.HexToRGB(color.Hex(val))
+	return RGB{r, g, b}
 }
 
 func (s *server) Update() error {
 	s.render()
-	return s.settings.apply(s.lcd)
+	s.ch <- *s
+	return nil
+	//return s.settings.apply(s.lcd)
 }
 func (s *server) SetLines(lines ...string) {
 	s.lines = lines
-	s.linePos = make([]int, len(lines))
+	s.linePos = make([]float64, len(lines))
 }
 func min(a, b int) int {
 	if a < b {
@@ -171,7 +207,7 @@ func writeline(line string, dest []byte) {
 func (s *server) render() {
 	const buffer = "   "
 	for i := 0; i < min(len(s.lines), len(s.display)); i++ {
-		writeline(slice(s.lines[i]+buffer, s.linePos[i]), s.display[i])
+		writeline(slice(s.lines[i]+buffer, int(s.linePos[i])), s.display[i])
 	}
 	for i := len(s.lines); i < len(s.display); i++ {
 		writeline("", s.display[i])
@@ -183,9 +219,6 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
 
 	for key, vals := range r.Form {
 		if len(vals) == 0 {
@@ -201,6 +234,8 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 			s.bgcolor = asColor(val)
 		case "on":
 			s.on = asBool(val)
+		case "rainbow":
+			s.rainbow = asBool(val)
 		case "line[]":
 			s.SetLines(vals...)
 		default:
