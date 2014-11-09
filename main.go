@@ -1,12 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"code.google.com/p/sadbox/color"
@@ -22,23 +26,24 @@ type LCD interface {
 	SetOn(on bool) error
 	SetBrightness(b uint8) error
 	SetContrast(c uint8) error
-	SetAutoscroll(on bool) error
+	SetAutoscroll(On bool) error
 	SetSize(cols, rows uint8) error
 	Clear() error
 	Home() error
 	MoveTo(col, row uint8) error
 	MoveForward() error
 	MoveBack() error
+	CreateCustomChar(spot uint8, c serial_lcd.Char) error
 	io.Writer
 }
 
 type FakeLcd struct{}
 
 func (f FakeLcd) SetBG(r, g, b uint8) error      { return nil }
-func (f FakeLcd) SetOn(on bool) error            { return nil }
+func (f FakeLcd) SetOn(On bool) error            { return nil }
 func (f FakeLcd) SetBrightness(b uint8) error    { return nil }
 func (f FakeLcd) SetContrast(c uint8) error      { return nil }
-func (f FakeLcd) SetAutoscroll(on bool) error    { return nil }
+func (f FakeLcd) SetAutoscroll(On bool) error    { return nil }
 func (f FakeLcd) SetSize(cols, rows uint8) error { return nil }
 func (f FakeLcd) Clear() error                   { return nil }
 func (f FakeLcd) Home() error                    { return nil }
@@ -47,12 +52,15 @@ func (f FakeLcd) MoveForward() error             { return nil }
 func (f FakeLcd) MoveBack() error                { return nil }
 func (f FakeLcd) Write(b []byte) (int, error)    { return len(b), nil }
 
+func (f FakeLcd) CreateCustomChar(spot uint8, c serial_lcd.Char) error { return nil }
+
 type RGB struct{ R, G, B uint8 }
 
 func main() {
-	port := flag.String("port", "/dev/serial/by-id/usb-239a_Adafruit_Industries-if00", "COM port that LCD is on.")
+	port := flag.String("port", "/dev/serial/by-id/usb-239a_Adafruit_Industries-if00", "COM port that LCD is On.")
 	baud := flag.Int("baud", 9600, "Baud rate to communicate at.")
 	addr := flag.String("addr", ":12000", "Web address to bind to.")
+	settingsFilename := flag.String("settings", ".lcd_manager.settings", "Settings file.")
 	flag.Parse()
 
 	var lcd LCD
@@ -68,19 +76,38 @@ func main() {
 	}
 
 	s := &server{
-		settings: settings{
-			bgcolor:    RGB{200, 200, 50},
-			contrast:   200,
-			brightness: 180,
-			on:         true,
+		Settings: Settings{
+			BgColor:    RGB{200, 200, 50},
+			Contrast:   200,
+			Brightness: 180,
+			On:         true,
 		},
-		lcd: lcd,
-		ch:  make(chan server),
+		settingsFile: *settingsFilename,
+		lcd:          lcd,
+		ch:           make(chan server),
+	}
+	if err := s.Load(); err != nil {
+		log.Println(err)
+	} else {
+		log.Println("Loading settings from", *settingsFilename)
 	}
 	go lcdLoop(s.ch)
 	s.configure(16, 2)
 	lcd.SetSize(16, 2)
-	s.SetLines("", "")
+	s.SetLines(s.Lines...)
+
+	heart := serial_lcd.MakeChar([8]string{
+		".....",
+		".*.*.",
+		"*.*.*",
+		"*...*",
+		"*...*",
+		".*.*.",
+		"..*..",
+		".....",
+	})
+	s.lcd.CreateCustomChar(0, heart)
+
 	s.Update()
 
 	m := martini.Classic()
@@ -90,32 +117,61 @@ func main() {
 	http.ListenAndServe(*addr, m)
 }
 
-type settings struct {
-	display    [][]byte
-	bgcolor    RGB
-	contrast   uint8
-	brightness uint8
-	on         bool
+type ByteString []byte
+
+func (l ByteString) MarshalText() ([]byte, error) { return json.Marshal(string(l)) }
+func (l *ByteString) UnmarshalText(p []byte) error {
+	var s string
+	err := json.Unmarshal(p, &s)
+	*l = []byte(s)
+	return err
 }
 
-func (s settings) apply(lcd LCD) error {
+type Settings struct {
+	display    []ByteString
+	BgColor    RGB
+	Contrast   uint8
+	Brightness uint8
+	On         bool
+}
+
+func (s Settings) apply(lcd LCD) error {
 	var errs multierror.Accumulator
-	errs.Push(lcd.SetOn(s.on))
-	errs.Push(lcd.SetBG(s.bgcolor.R, s.bgcolor.G, s.bgcolor.B))
-	errs.Push(lcd.SetBrightness(s.brightness))
-	errs.Push(lcd.SetContrast(s.contrast))
-	errs.Push(lcd.SetOn(s.on))
+	errs.Push(lcd.SetOn(s.On))
+	errs.Push(lcd.SetBG(s.BgColor.R, s.BgColor.G, s.BgColor.B))
+	errs.Push(lcd.SetBrightness(s.Brightness))
+	errs.Push(lcd.SetContrast(s.Contrast))
+	errs.Push(lcd.SetOn(s.On))
 	errs.Push(lcd.Home())
 	errs.Push(dropN(lcd.Write(s.display[0])))
 	errs.Push(dropN(lcd.Write(s.display[1])))
 	return errs.Error()
 }
 
-func (s *settings) configure(width, height int) {
-	s.display = make([][]byte, height)
+func (s *Settings) configure(width, height int) {
+	s.display = make([]ByteString, height)
 	for i := 0; i < height; i++ {
-		s.display[i] = make([]byte, width)
+		s.display[i] = make(ByteString, width)
 	}
+}
+
+func (s *server) Load() error {
+	if data, err := ioutil.ReadFile(s.settingsFile); err == nil {
+		if err := json.Unmarshal(data, &s); err != nil {
+			return fmt.Errorf("Error loading settings: %v", err)
+		}
+	} else {
+		return fmt.Errorf("Error reading settings file: %v", err)
+	}
+	return nil
+}
+
+func (s *server) Save() error {
+	data, err := json.Marshal(s)
+	if err == nil {
+		return ioutil.WriteFile(s.settingsFile, data, 0644)
+	}
+	return err
 }
 
 func dropN(n int, e error) error { return e }
@@ -129,6 +185,7 @@ func lcdLoop(newSettings chan server) {
 	for {
 		select {
 		case s, open = <-newSettings:
+			s.Save()
 			if !open {
 				return
 			}
@@ -141,24 +198,25 @@ func lcdLoop(newSettings chan server) {
 }
 
 func (s *server) advance(dt time.Duration) {
-	if s.rainbow {
-		h, ss, v := color.RGBToHSV(s.bgcolor.R, s.bgcolor.G, s.bgcolor.B)
-		h = math.Mod(h+dt.Seconds()/10.0, 1.0)
-		s.bgcolor.R, s.bgcolor.G, s.bgcolor.B = color.HSVToRGB(h, ss, v)
+	if s.Rainbow {
+		h, ss, v := color.RGBToHSV(s.BgColor.R, s.BgColor.G, s.BgColor.B)
+		h = math.Mod(h+dt.Seconds()/7.0, 1.0)
+		s.BgColor.R, s.BgColor.G, s.BgColor.B = color.HSVToRGB(h, ss, v)
 	}
 }
 
 type server struct {
-	settings
+	Settings
 
-	lines   []string
-	linePos []float64
+	Lines   []string
+	LinePos []float64
 
 	lcd LCD
 
-	rainbow bool
+	Rainbow bool
 
-	ch chan server
+	ch           chan server
+	settingsFile string
 }
 
 func asByte(val string) uint8 { n, _ := strconv.ParseUint(val, 10, 8); return uint8(n) }
@@ -172,11 +230,11 @@ func (s *server) Update() error {
 	s.render()
 	s.ch <- *s
 	return nil
-	//return s.settings.apply(s.lcd)
+	//return s.Settings.apply(s.lcd)
 }
 func (s *server) SetLines(lines ...string) {
-	s.lines = lines
-	s.linePos = make([]float64, len(lines))
+	s.Lines = lines
+	s.LinePos = make([]float64, len(lines))
 }
 func min(a, b int) int {
 	if a < b {
@@ -206,10 +264,10 @@ func writeline(line string, dest []byte) {
 }
 func (s *server) render() {
 	const buffer = "   "
-	for i := 0; i < min(len(s.lines), len(s.display)); i++ {
-		writeline(slice(s.lines[i]+buffer, int(s.linePos[i])), s.display[i])
+	for i := 0; i < min(len(s.Lines), len(s.display)); i++ {
+		writeline(slice(s.Lines[i]+buffer, int(s.LinePos[i])), s.display[i])
 	}
-	for i := len(s.lines); i < len(s.display); i++ {
+	for i := len(s.Lines); i < len(s.display); i++ {
 		writeline("", s.display[i])
 	}
 }
@@ -226,18 +284,18 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 		}
 		val := vals[0]
 		switch key {
-		case "brightness":
-			s.brightness = asByte(val)
-		case "contrast":
-			s.contrast = asByte(val)
+		case "Brightness":
+			s.Brightness = asByte(val)
+		case "Contrast":
+			s.Contrast = asByte(val)
 		case "color":
-			s.bgcolor = asColor(val)
-		case "on":
-			s.on = asBool(val)
+			s.BgColor = asColor(val)
+		case "On":
+			s.On = asBool(val)
 		case "rainbow":
-			s.rainbow = asBool(val)
+			s.Rainbow = asBool(val)
 		case "line[]":
-			s.SetLines(vals...)
+			s.SetLines(heartify(vals...)...)
 		default:
 			log.Printf("Unknown form key %q = %q", key, vals)
 		}
@@ -246,4 +304,11 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to update lcd: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func heartify(lines ...string) []string {
+	for i, line := range lines {
+		lines[i] = strings.Replace(line, "@", "\x00", -1)
+	}
+	return lines
 }
