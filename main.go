@@ -277,10 +277,14 @@ func writeline(line string, dest []byte) {
 		dest[i] = ' '
 	}
 }
+func heartify(line string) string {
+	return strings.Replace(line, "@", "\x00", -1)
+}
+
 func (s *server) render() {
 	const buffer = "   "
 	for i := 0; i < min(len(s.Lines), len(s.display)); i++ {
-		writeline(slice(s.Lines[i]+buffer, int(s.LinePos[i])), s.display[i])
+		writeline(heartify(slice(s.Lines[i]+buffer, int(s.LinePos[i]))), s.display[i])
 	}
 	for i := len(s.Lines); i < len(s.display); i++ {
 		writeline("", s.display[i])
@@ -311,7 +315,7 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 		case "Rainbow":
 			s.Rainbow = asBool(val)
 		case "Lines[]":
-			s.SetLines(heartify(vals...)...)
+			s.SetLines(vals...)
 		default:
 			log.Printf("Unknown form key %q = %q", key, vals)
 		}
@@ -320,11 +324,4 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to update lcd: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-func heartify(lines ...string) []string {
-	for i, line := range lines {
-		lines[i] = strings.Replace(line, "@", "\x00", -1)
-	}
-	return lines
 }
