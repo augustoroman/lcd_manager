@@ -16,12 +16,12 @@
 <body>
 <h1>LCD Control</h1>
 <hr>
-Line 0: <input class=mono type=text size=16 maxlength=16 name=line><br/>
-Line 1: <input class=mono type=text size=16 maxlength=16 name=line><br/>
+Line 0: <input class=mono type=text size=16 maxlength=16 name=Lines><br/>
+Line 1: <input class=mono type=text size=16 maxlength=16 name=Lines><br/>
 
-Background: <input type=color name=color>  (rainbow: <input type=checkbox name=rainbow>)<br>
-Brightness: <input type=range min=0 max=255 step=1 name=brightness> <br>
-Contrast: <input type=range min=0 max=255 step=1 name=contrast> <br>
+Background: <input type=color name=BgColor>  (rainbow: <input type=checkbox name=Rainbow>)<br>
+Brightness: <input type=range min=0 max=255 step=1 name=Brightness> <br>
+Contrast: <input type=range min=0 max=255 step=1 name=Contrast> <br>
 
 <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 <script type="text/javascript">
@@ -54,6 +54,24 @@ function checkedVal(name) {
 $('input[type=checkbox]').click(function(ev){
     $.post("/set", checkedVal(ev.target.name));
 });
+
+function initValue(key, val) {
+    var input = $('input[name='+key+']');
+    if (input.length == 0) {
+        console.log('No such input: ', key)
+        return;
+    }
+
+    if (val.length && input.length == val.length) {
+        for (var i = 0; i < input.length; i++) {
+            input[i].value = val[i];
+        }
+    } else {
+        input[0].value = val;
+        input[0].checked = val;
+    }
+}
+$.get("/settings",  function(data) { $.each(data, initValue); });
 
 </script>
 

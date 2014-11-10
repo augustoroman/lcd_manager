@@ -56,6 +56,15 @@ func (f FakeLcd) CreateCustomChar(spot uint8, c serial_lcd.Char) error { return 
 
 type RGB struct{ R, G, B uint8 }
 
+func (r RGB) MarshalText() ([]byte, error) {
+	val := fmt.Sprintf(`%s`, color.RGBToHex(r.R, r.G, r.B))
+	return []byte(val), nil
+}
+func (r *RGB) UnmarshalText(p []byte) error {
+	r.R, r.G, r.B = color.HexToRGB(color.Hex(p))
+	return nil
+}
+
 func main() {
 	port := flag.String("port", "/dev/serial/by-id/usb-239a_Adafruit_Industries-if00", "COM port that LCD is On.")
 	baud := flag.Int("baud", 9600, "Baud rate to communicate at.")
@@ -114,6 +123,7 @@ func main() {
 	m.Handlers(martini.Recovery())
 	m.Get("/", http.FileServer(rice.MustFindBox("www").HTTPBox()).ServeHTTP)
 	m.Post("/set", s.Set)
+	m.Get("/settings", s.GetSettings)
 	http.ListenAndServe(*addr, m)
 }
 
@@ -172,6 +182,11 @@ func (s *server) Save() error {
 		return ioutil.WriteFile(s.settingsFile, data, 0644)
 	}
 	return err
+}
+
+func (s *server) GetSettings(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(s)
 }
 
 func dropN(n int, e error) error { return e }
@@ -288,13 +303,14 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 			s.Brightness = asByte(val)
 		case "Contrast":
 			s.Contrast = asByte(val)
-		case "color":
+		case "BgColor":
 			s.BgColor = asColor(val)
+			log.Println(s.BgColor)
 		case "On":
 			s.On = asBool(val)
-		case "rainbow":
+		case "Rainbow":
 			s.Rainbow = asBool(val)
-		case "line[]":
+		case "Lines[]":
 			s.SetLines(heartify(vals...)...)
 		default:
 			log.Printf("Unknown form key %q = %q", key, vals)
