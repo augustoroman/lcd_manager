@@ -291,13 +291,21 @@ func writeline(line string, dest []byte) {
 	}
 }
 func heartify(line string) string {
-	return strings.Replace(line, "@", "\x00", -1)
+	return strings.Replace(line, "@", "\x01", -1)
 }
-
+func unquote(line string) string {
+	if res, err := strconv.Unquote(`"` + line + `"`); err == nil {
+		// log.Printf("Unquoted: [%s] -> %q", line, res)
+		return res
+		// } else {
+		// 	log.Printf("Error unquoting: [%s]: %v", line, err)
+	}
+	return line
+}
 func (s *server) render() {
 	const buffer = "   "
 	for i := 0; i < min(len(s.Lines), len(s.display)); i++ {
-		writeline(heartify(slice(s.Lines[i]+buffer, int(s.LinePos[i]))), s.display[i])
+		writeline(unquote(slice(s.Lines[i]+buffer, int(s.LinePos[i]))), s.display[i])
 	}
 	for i := len(s.Lines); i < len(s.display); i++ {
 		writeline("", s.display[i])
