@@ -74,6 +74,7 @@ function onInput(event) {
     var textArea = $('#Lines')[0];
     var content = textArea.value;
     content = content.replace('\\x0', '');
+    $.post("/set", vals("Lines"));
     var message = $('#CharsLeft')[0].textContent =
-        "Chars left: " + (32 - content.length + 1);
+        "Random number: " + (32 - content.length + 1);
 }
