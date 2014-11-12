@@ -132,10 +132,12 @@ func main() {
 
 	m := martini.Classic()
 	m.Handlers(martini.Recovery())
-	m.Get("/", http.FileServer(rice.MustFindBox("www").HTTPBox()).ServeHTTP)
 	m.Post("/set", s.Set)
 	m.Get("/settings", s.GetSettings)
-	http.ListenAndServe(*addr, m)
+	m.Get("/**", http.FileServer(rice.MustFindBox("www").HTTPBox()).ServeHTTP)
+	if err := http.ListenAndServe(*addr, m); err != nil {
+		log.Fatal(err)
+	}
 }
 
 type ByteString []byte
