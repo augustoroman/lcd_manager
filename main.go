@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"code.google.com/p/sadbox/color"
-	"github.com/augustoroman/multierror"
-
 	"github.com/GeertJohan/go.rice"
+	"github.com/augustoroman/multierror"
 	"github.com/augustoroman/serial_lcd"
+	"github.com/cactus/gostrftime"
 	"github.com/go-martini/martini"
 )
 
@@ -220,6 +220,7 @@ func lcdLoop(newSettings chan server) {
 		case t := <-timer.C:
 			s.advance(t.Sub(last))
 		}
+		s.render()
 		s.apply(s.lcd)
 		last = time.Now()
 	}
@@ -255,7 +256,6 @@ func asColor(val string) RGB {
 }
 
 func (s *server) Update() error {
-	s.render()
 	s.ch <- *s
 	return nil
 	//return s.Settings.apply(s.lcd)
@@ -305,7 +305,10 @@ func unquote(line string) string {
 func (s *server) render() {
 	const buffer = "   "
 	for i := 0; i < min(len(s.Lines), len(s.display)); i++ {
-		writeline(unquote(slice(s.Lines[i]+buffer, int(s.LinePos[i]))), s.display[i])
+		line := slice(s.Lines[i]+buffer, int(s.LinePos[i]))
+		line = unquote(line)
+		line = gostrftime.Format(line, time.Now())
+		writeline(line, s.display[i])
 	}
 	for i := len(s.Lines); i < len(s.display); i++ {
 		writeline("", s.display[i])
@@ -330,7 +333,7 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 			s.Contrast = asByte(val)
 		case "BgColor":
 			s.BgColor = asColor(val)
-			log.Println(s.BgColor)
+			// log.Println(s.BgColor)
 		case "On":
 			s.On = asBool(val)
 		case "Rainbow":
