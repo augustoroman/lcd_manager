@@ -1,79 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>LCD Manager</title>
-    <link href='http://fonts.googleapis.com/css?family=VT323' rel='stylesheet' type='text/css'>
-    <style type="text/css">
-    .mono {
-        font-family: 'VT323';
-        font-size: 14pt;
-    }
-    body {
-        font-family: sans-serif;
-    }
-    </style>
+  <title>LCD Display Manager</title>
+  <link href='http://fonts.googleapis.com/css?family=VT323' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="styles.css">
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 </head>
 <body>
-<h1>LCD Control</h1>
+<h1>LCD Display Manager</h1>
 <hr>
-Line 0: <input class=mono type=text size=16 maxlength=16 name=Lines><br/>
-Line 1: <input class=mono type=text size=16 maxlength=16 name=Lines><br/>
 
-Background: <input type=color name=BgColor>  (rainbow: <input type=checkbox name=Rainbow>)<br>
-Brightness: <input type=range min=0 max=255 step=1 name=Brightness> <br>
-Contrast: <input type=range min=0 max=255 step=1 name=Contrast> <br>
+<table>
+  <tr>
+    <td>Input: </td>
+    <td><textarea class=mono cols=64 rows=2 name=Lines id=Lines oninput="onInput()"></textarea>
+        <span id="CharsLeft"></span>
+    </td>
+  </tr>
+  <tr>
+    <td>Special chars: </td>
+    <td><button type=button id="button0" onclick="buttonClick(event)">0</button>
+        <button type=button id="button1" onclick="buttonClick(event)">1</button>
+        <button type=button id="button2" onclick="buttonClick(event)">2</button>
+        <button type=button id="button3" onclick="buttonClick(event)">3</button>
+        <button type=button id="button4" onclick="buttonClick(event)">4</button>
+        <button type=button id="button5" onclick="buttonClick(event)">5</button>
+        <button type=button id="button6" onclick="buttonClick(event)">6</button>
+        <button type=button id="button7" onclick="buttonClick(event)">7</button>
+      </td>
+  </tr>
+  <tr>
+    <td>Background: </td>
+    <td><input type=color name=BgColor id="BgColor">
+        (rainbow: <input type=checkbox name=Rainbow>)</td>
+  </tr>
+  <tr>
+    <td>Brightness: </td>
+    <td><input type=range min=0 max=255 step=1 name=Brightness></td>
+  </tr>
+  <tr>
+    <td>Contrast: </td>
+    <td><input type=range min=0 max=255 step=1 name=Contrast></td>
+  </tr>
+</table>
 
-<script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
-<script type="text/javascript">
-
-function vals(name) {
-    var inputs = $('input[name='+name+']');
-    var data = {};
-    if (inputs.length == 1) {
-        if (inputs[0].type=="checkbox") {
-            data[name] = inputs[0].checked;
-        } else {
-            data[name] = inputs.val();
-        }
-    } else if (inputs.length > 1) {
-        data[name] = inputs.map(function(k,v) { return v.value; }).get();
-    }
-    return data
-}
-
-window.addEventListener('input', function(ev) {
-    $.post("/set", vals(ev.target.name));
-})
-
-function checkedVal(name) {
-    var data = {};
-    data[name] = $('input[name='+name+']')[0].checked;
-    return data;
-}
-
-$('input[type=checkbox]').click(function(ev){
-    $.post("/set", checkedVal(ev.target.name));
-});
-
-function initValue(key, val) {
-    var input = $('input[name='+key+']');
-    if (input.length == 0) {
-        console.log('No such input: ', key)
-        return;
-    }
-
-    if (val.length && input.length == val.length) {
-        for (var i = 0; i < input.length; i++) {
-            input[i].value = val[i];
-        }
-    } else {
-        input[0].value = val;
-        input[0].checked = val;
-    }
-}
-$.get("/settings",  function(data) { $.each(data, initValue); });
-
-</script>
-
+<script src="main.js"></script>
 </body>
 </html>
