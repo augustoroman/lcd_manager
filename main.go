@@ -105,7 +105,7 @@ func main() {
 	lcd.SetSize(16, 2)
 	s.SetLines(s.Lines...)
 
-	heart := serial_lcd.MakeChar([8]string{
+	s.lcd.CreateCustomChar(0, serial_lcd.MakeChar([8]string{
 		".....",
 		".*.*.",
 		"*.*.*",
@@ -114,8 +114,19 @@ func main() {
 		".*.*.",
 		"..*..",
 		".....",
-	})
-	s.lcd.CreateCustomChar(0, heart)
+	}))
+	s.lcd.CreateCustomChar(1, serial_lcd.MakeChar([8]string{
+		"..o..",
+		".o.o.",
+		".ooo.",
+		"o...o",
+		".ooo.",
+		"o...o",
+		"o...o",
+		".ooo.",
+	}))
+
+	pacmanChars(s.lcd)
 
 	s.Update()
 
@@ -324,4 +335,96 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to update lcd: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func pacmanChars(lcd LCD) {
+	a1 := serial_lcd.MakeChar([8]string{
+		".....",
+		"**...",
+		"***..",
+		"****.",
+		"****.",
+		"*****",
+		"*....",
+		".....",
+	})
+	a2 := serial_lcd.MakeChar([8]string{
+		".....",
+		"...**",
+		"..***",
+		".****",
+		"*****",
+		"*****",
+		"*****",
+		"*****",
+	})
+	a3 := serial_lcd.MakeChar([8]string{
+		".....",
+		"*....",
+		"*****",
+		"****.",
+		"***..",
+		"**...",
+		".....",
+		".....",
+	})
+	a4 := serial_lcd.MakeChar([8]string{
+		"*****",
+		"*****",
+		"*****",
+		".****",
+		"..***",
+		"...**",
+		".....",
+		".....",
+	})
+	b1 := serial_lcd.MakeChar([8]string{
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+		"....*",
+		"...**",
+	})
+	b2 := serial_lcd.MakeChar([8]string{
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+		"*....",
+		"**...",
+	})
+	b3 := serial_lcd.MakeChar([8]string{
+		"**...",
+		"*....",
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+	})
+	b4 := serial_lcd.MakeChar([8]string{
+		"...**",
+		"....*",
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+	})
+
+	lcd.CreateCustomChar(0, a1)
+	lcd.CreateCustomChar(1, a2)
+	lcd.CreateCustomChar(2, a3)
+	lcd.CreateCustomChar(3, a4)
+	lcd.CreateCustomChar(4, b1)
+	lcd.CreateCustomChar(5, b2)
+	lcd.CreateCustomChar(6, b3)
+	lcd.CreateCustomChar(7, b4)
 }
