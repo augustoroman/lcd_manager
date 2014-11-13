@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>LCD Display Character Editor</title>
+  <style>
+    .largePixel {
+      height: 50px;
+      width: 50px;
+    }
+    .pixel {
+      height: 3px;
+      width: 3px;
+    }
+    .black {
+      background: black;
+    }
+    .bigTable {
+      border: 1px solid black;
+      border-spacing: 0px;
+    }
+    .previewTable {
+      border-spacing: 0px;
+    }
+  </style>
+</head>
+<body>
+<h1>LCD Display Character Editor</h1>
+<hr>
+<table>
+  <tr>
+    <td>
+      <div id="bigBoard1"></div>
+    </td>
+    <td>
+      <div id="bigBoard2"></div>
+    </td>
+    <td>
+      <div id="preview1"></div>
+    </td>
+    <td>
+      <div id="preview2"></div>
+    </td>
+    </td>
+    <td>
+      <textarea class=mono cols=64 rows=27 id=code></textarea>
+    </td>
+  </tr>
+</table>
+
+<script>
+function flipBit(event) {
+  event.target.classList.toggle('black');
+  preview();
+
+  var textArea = document.getElementById('code');
+  textArea.value = '';
+  buildCode();
+}
+
+function findId(ordinal, row, col) {
+  return ordinal + String.fromCharCode(row) + col;
+}
+
+function createPreviewTable(element, ordinal) {
+  if (element.children.length > 0)
+    element.removeChild(element.children[0]);
+
+  var table = document.createElement('TABLE');
+  table.classList.add('previewTable');
+
+  for (var r = "a".charCodeAt(0); r < "i".charCodeAt(0); ++r) {
+    var row = document.createElement('TR');
+    for (var c = 1; c <= 5; ++c) {
+      var id = findId(ordinal, r, c);
+      var col = document.createElement('TD');
+      var div = document.createElement('DIV');
+      div.classList.add('pixel');
+      if (document.getElementById(id).classList.contains('black'))
+        div.classList.add('black');
+      col.appendChild(div);
+      row.appendChild(col);
+    }
+    table.appendChild(row);
+  }
+
+  element.appendChild(table);
+}
+
+function preview() {
+  createPreviewTable(document.getElementById('preview1'), 1);
+  createPreviewTable(document.getElementById('preview2'), 2);
+}
+
+function createMainTable(element, ordinal) {
+  if (element.children.length > 0)
+    element.removeChild(element.children[0]);
+
+  var table = document.createElement('TABLE');
+  table.classList.add('bigTable');
+
+  for (var r = "a".charCodeAt(0); r < "i".charCodeAt(0); ++r) {
+    var row = document.createElement('TR');
+    for (var c = 1; c <= 5; ++c) {
+      var id = findId(ordinal, r, c);
+      var col = document.createElement('TD');
+      var div = document.createElement('DIV');
+      div.classList.add('largePixel');
+      div.id = id;
+      div.addEventListener("click", flipBit, false);
+      col.appendChild(div);
+      row.appendChild(col);
+    }
+    table.appendChild(row);
+  }
+
+  element.appendChild(table);
+}
+
+function main() {
+  createMainTable(document.getElementById('bigBoard1'), 1);
+  createMainTable(document.getElementById('bigBoard2'), 2);
+}
+
+function buildCode() {
+  var textArea = document.getElementById('code');
+
+  for (var ordinal = 1; ordinal <= 2; ++ordinal) {
+    textArea.value += '  lcd.CreateCustomChar(' + (ordinal - 1) +
+                      ', serial_lcd.MakeChar([8]string{\n';
+    for (var r = "a".charCodeAt(0); r < "i".charCodeAt(0); ++r) {
+      textArea.value += '    "';
+      for (var c = 1; c <= 5; ++c) {
+        var id = findId(ordinal, r, c);
+        if (document.getElementById(id).classList.contains('black'))
+          textArea.value += '#';
+        else
+          textArea.value += '.';
+      }
+      textArea.value += '",';
+      textArea.value += '\n';
+    }
+    textArea.value += '  })\n\n';
+  }
+}
+
+main();
+
+</script>
+
+</body>
+</html>
