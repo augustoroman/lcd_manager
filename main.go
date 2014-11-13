@@ -96,7 +96,8 @@ func main() {
 		".ooo.",
 	}))
 
-	pacmanChars(s.lcd)
+	// pacmanChars(s.lcd)
+	invaderChars(s.lcd)
 
 	s.Update()
 
@@ -262,6 +263,45 @@ func (s *server) Set(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to update lcd: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func invaderChars(lcd LCD) {
+	a1 := serial_lcd.MakeChar([8]string{
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+		".....",
+		".*.*.",
+		"*.*.*",
+	})
+
+	a2 := serial_lcd.MakeChar([8]string{
+		"**...",
+		"..*..",
+		"...*.",
+		"**.*.",
+		"*..**",
+		"...**",
+		"**.*.",
+		"...*.",
+	})
+
+	a3 := serial_lcd.MakeChar([8]string{
+		"...**",
+		"..*..",
+		".*...",
+		".*.**",
+		"**..*",
+		"**...",
+		".*.**",
+		".*...",
+	})
+
+	lcd.CreateCustomChar(0, a1)
+	lcd.CreateCustomChar(1, a2)
+	lcd.CreateCustomChar(2, a3)
 }
 
 func pacmanChars(lcd LCD) {
