@@ -9,8 +9,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"code.google.com/p/sadbox/color"
@@ -35,34 +33,6 @@ type LCD interface {
 	MoveBack() error
 	CreateCustomChar(spot uint8, c serial_lcd.Char) error
 	io.Writer
-}
-
-type FakeLcd struct{}
-
-func (f FakeLcd) SetBG(r, g, b uint8) error      { return nil }
-func (f FakeLcd) SetOn(On bool) error            { return nil }
-func (f FakeLcd) SetBrightness(b uint8) error    { return nil }
-func (f FakeLcd) SetContrast(c uint8) error      { return nil }
-func (f FakeLcd) SetAutoscroll(On bool) error    { return nil }
-func (f FakeLcd) SetSize(cols, rows uint8) error { return nil }
-func (f FakeLcd) Clear() error                   { return nil }
-func (f FakeLcd) Home() error                    { return nil }
-func (f FakeLcd) MoveTo(col, row uint8) error    { return nil }
-func (f FakeLcd) MoveForward() error             { return nil }
-func (f FakeLcd) MoveBack() error                { return nil }
-func (f FakeLcd) Write(b []byte) (int, error)    { return len(b), nil }
-
-func (f FakeLcd) CreateCustomChar(spot uint8, c serial_lcd.Char) error { return nil }
-
-type RGB struct{ R, G, B uint8 }
-
-func (r RGB) MarshalText() ([]byte, error) {
-	val := fmt.Sprintf(`%s`, color.RGBToHex(r.R, r.G, r.B))
-	return []byte(val), nil
-}
-func (r *RGB) UnmarshalText(p []byte) error {
-	r.R, r.G, r.B = color.HexToRGB(color.Hex(p))
-	return nil
 }
 
 func main() {
@@ -140,16 +110,6 @@ func main() {
 	}
 }
 
-type ByteString []byte
-
-func (l ByteString) MarshalText() ([]byte, error) { return json.Marshal(string(l)) }
-func (l *ByteString) UnmarshalText(p []byte) error {
-	var s string
-	err := json.Unmarshal(p, &s)
-	*l = []byte(s)
-	return err
-}
-
 type Settings struct {
 	display    []ByteString
 	BgColor    RGB
@@ -202,8 +162,6 @@ func (s *server) GetSettings(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(s)
 }
 
-func dropN(n int, e error) error { return e }
-
 func lcdLoop(newSettings chan server) {
 	s := <-newSettings
 	timer := time.NewTicker(100 * time.Millisecond)
@@ -248,13 +206,6 @@ type server struct {
 	settingsFile string
 }
 
-func asByte(val string) uint8 { n, _ := strconv.ParseUint(val, 10, 8); return uint8(n) }
-func asBool(val string) bool  { return val == "true" }
-func asColor(val string) RGB {
-	r, g, b := color.HexToRGB(color.Hex(val))
-	return RGB{r, g, b}
-}
-
 func (s *server) Update() error {
 	s.ch <- *s
 	return nil
@@ -264,44 +215,7 @@ func (s *server) SetLines(lines ...string) {
 	s.Lines = lines
 	s.LinePos = make([]float64, len(lines))
 }
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-func slice(line string, start int) string {
-	if len(line) < start {
-		return ""
-	}
-	return line[start:]
-}
-func writeline(line string, dest []byte) {
-	for i := 0; i < min(len(line), len(dest)); i++ {
-		dest[i] = line[i]
-	}
-	for i := len(line); i < len(dest); i++ {
-		dest[i] = ' '
-	}
-}
-func heartify(line string) string {
-	return strings.Replace(line, "@", "\x01", -1)
-}
-func unquote(line string) string {
-	if res, err := strconv.Unquote(`"` + line + `"`); err == nil {
-		// log.Printf("Unquoted: [%s] -> %q", line, res)
-		return res
-		// } else {
-		// 	log.Printf("Error unquoting: [%s]: %v", line, err)
-	}
-	return line
-}
+
 func (s *server) render() {
 	const buffer = "   "
 	for i := 0; i < min(len(s.Lines), len(s.display)); i++ {
