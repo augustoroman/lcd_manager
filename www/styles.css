@@ -5,3 +5,7 @@
 body {
     font-family: sans-serif;
 }
+#frame {
+    min-width: 32ex;
+    min-height: 10em;
+}

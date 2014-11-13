@@ -13,7 +13,7 @@
 <table>
   <tr>
     <td>Input:</td>
-    <td><textarea class=mono cols=20 rows=2 name=Lines id=Lines oninput="onInput()"></textarea>
+    <td><textarea class=mono cols=30 rows=2 name=Lines id="Lines" oninput="onInput()"></textarea>
         <span id="CharsLeft"></span><br>
         You can specify the current time using
         <a href="http://strftime.org/">strftime conventions<a>,<br>
@@ -47,6 +47,20 @@
   </tr>
 </table>
 
+<p>
+
+Frames:<br>
+<select size=10 id="frame" name="frame"></select><br>
+<button type=button id="saveFrame" onclick="saveFrame()">new frame with current text [Ctrl-S]</button>
+<br>
+<p>
+<button type=button id="delFrame" onclick="delFrame()">delete selected frame</button>
+
+<p>
+
+<a href="/char">Edit characters</a>
+
 <script src="main.js"></script>
+<script src="frames.js"></script>
 </body>
 </html>

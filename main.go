@@ -64,6 +64,7 @@ func main() {
 		settingsFile: *settingsFilename,
 		lcd:          lcd,
 		ch:           make(chan server),
+		Frames:       map[string]string{},
 	}
 	if err := s.Load(); err != nil {
 		log.Println(err)
@@ -84,7 +85,11 @@ func main() {
 	m := martini.Classic()
 	m.Handlers(martini.Recovery())
 	m.Post("/set", s.Set)
+
 	m.Get("/settings", s.GetSettings)
+	m.Get("/frames", s.GetFrames)
+	m.Put("/frames", s.SetFrames)
+
 	m.Get("/**", http.FileServer(rice.MustFindBox("www").HTTPBox()).ServeHTTP)
 	if err := http.ListenAndServe(*addr, m); err != nil {
 		log.Fatal(err)
@@ -179,6 +184,8 @@ type server struct {
 	Lines   []string
 	LinePos []float64
 
+	Frames map[string]string
+
 	lcd LCD
 
 	Rainbow bool
@@ -208,6 +215,20 @@ func (s *server) render() {
 	for i := len(s.Lines); i < len(s.display); i++ {
 		writeline("", s.display[i])
 	}
+}
+
+func (s *server) GetFrames(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(s.Frames)
+}
+func (s *server) SetFrames(w http.ResponseWriter, r *http.Request) {
+	var frames map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&frames); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	s.Frames = frames
+	s.Update()
 }
 
 func (s *server) Set(w http.ResponseWriter, r *http.Request) {

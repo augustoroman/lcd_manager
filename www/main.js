@@ -18,6 +18,15 @@ function vals(name) {
 }
 
 window.addEventListener('input', function(ev) {
+    if (ev.target.name == "frame") {
+        selectFrame();
+        return
+    }
+    if (ev.target.name == "Lines") {
+        updateFrame();
+        // fall through
+    }
+
     $.post("/set", vals(ev.target.name));
 })
 
