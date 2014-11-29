@@ -78,7 +78,8 @@ func main() {
 
 	// pacmanChars(s.lcd)
 	// invaderChars(s.lcd)
-	watcherChars(s.lcd)
+	// watcherChars(s.lcd)
+	birthday_chars(lcd)
 
 	s.Update()
 

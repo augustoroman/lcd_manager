@@ -2,6 +2,81 @@ package main
 
 import "github.com/augustoroman/serial_lcd"
 
+func birthday_chars(lcd LCD) {
+	// balloon
+	lcd.CreateCustomChar(0, serial_lcd.MakeChar([8]string{
+		".##..",
+		"#..#.",
+		"#..#.",
+		".##..",
+		"..#..",
+		".#...",
+		".#...",
+		"..#..",
+	}))
+
+	// balloon 2
+	lcd.CreateCustomChar(1, serial_lcd.MakeChar([8]string{
+		"..#..",
+		".....",
+		".##..",
+		"#..#.",
+		"#..#.",
+		".##..",
+		"..#..",
+		".#...",
+	}))
+
+	// smiley
+	lcd.CreateCustomChar(2, serial_lcd.MakeChar([8]string{
+		".....",
+		".#.#.",
+		".#.#.",
+		".....",
+		"..#..",
+		"#...#",
+		"#####",
+		".###.",
+	}))
+
+	// confetti
+	lcd.CreateCustomChar(3, serial_lcd.MakeChar([8]string{
+		"....#",
+		".#...",
+		".....",
+		"...#.",
+		"#....",
+		".....",
+		"...#.",
+		".#...",
+	}))
+
+	// confetti
+	lcd.CreateCustomChar(4, serial_lcd.MakeChar([8]string{
+		"#....",
+		"...#.",
+		".....",
+		".....",
+		".#...",
+		"....#",
+		".....",
+		"#....",
+	}))
+
+	// confetti
+	lcd.CreateCustomChar(5, serial_lcd.MakeChar([8]string{
+		"..#..",
+		".....",
+		"#....",
+		".....",
+		"....#",
+		".....",
+		".#...",
+		"...#.",
+	}))
+
+}
+
 func heart_and_snowman(lcd LCD) {
 	lcd.CreateCustomChar(0, serial_lcd.MakeChar([8]string{
 		".....",
