@@ -27,7 +27,7 @@ window.addEventListener('input', function(ev) {
         // fall through
     }
 
-    $.post("/set", vals(ev.target.name));
+    $.post("set", vals(ev.target.name));
 })
 
 function checkedVal(name) {
@@ -37,7 +37,7 @@ function checkedVal(name) {
 }
 
 $('input[type=checkbox]').click(function(ev){
-    $.post("/set", checkedVal(ev.target.name));
+    $.post("set", checkedVal(ev.target.name));
 });
 
 function initValue(key, val) {
@@ -61,7 +61,7 @@ function initValue(key, val) {
         input[0].checked = val;
     }
 }
-$.get("/settings",  function(data) { $.each(data, initValue); });
+$.get("settings",  function(data) { $.each(data, initValue); });
 
 function buttonClick(event) {
     var myValue = '\\x0' + event.target.textContent;
@@ -83,7 +83,7 @@ function onInput(event) {
     var textArea = $('#Lines')[0];
     var content = textArea.value;
     content = content.replace('\\x0', '');
-    $.post("/set", vals("Lines"));
+    $.post("set", vals("Lines"));
     var message = $('#CharsLeft')[0].textContent =
         "Random number: " + (32 - content.length + 1);
 }

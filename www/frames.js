@@ -35,7 +35,7 @@ function selectFrame() {
     }
     var val = $('option[value='+id+']').text();
     $("#Lines").val(val);
-    $.post("/set", vals("Lines"));
+    $.post("set", vals("Lines"));
 }
 
 function updateFrame() {
@@ -73,7 +73,7 @@ function getFrames() {
     return frames;
 }
 function uploadFrames() {
-    $.ajax('/frames', {
+    $.ajax('frames', {
         type: 'put',
         data: JSON.stringify(getFrames()),
     });
@@ -88,4 +88,4 @@ function setFrames(frames) {
     }
 }
 
-$.get('/frames', setFrames);
+$.get('frames', setFrames);
